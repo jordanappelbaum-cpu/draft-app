@@ -6,9 +6,67 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="theme-color" content="#0b0b14" />
     <title>Draft — draft anything with your friends</title>
+    <style>
+      /* Plain fallback styling so the error box is readable even if the app CSS never loads. */
+      #boot-error {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        margin: 0;
+        padding: 20px;
+        overflow: auto;
+        background: #0b0b14;
+        color: #ffd2d2;
+        font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      #boot-error h1 { margin: 0 0 10px; font-size: 15px; color: #fff; }
+      #boot-error .hint { color: #9aa; margin-top: 14px; }
+    </style>
   </head>
   <body>
     <div id="root"></div>
+
+    <!--
+      On-screen error reporter. If the app fails to start (a script error, an
+      asset that 404s, etc.) this prints the real error ON THE PAGE instead of
+      leaving a blank white screen — so it can be read without a dev console.
+    -->
+    <script>
+      (function () {
+        function show(title, detail) {
+          if (document.getElementById('boot-error')) return
+          var box = document.createElement('pre')
+          box.id = 'boot-error'
+          box.innerHTML =
+            '<h1>' + title + '</h1>' +
+            String(detail || '') +
+            '<div class="hint">Read this text to whoever is helping you debug, ' +
+            'then it can be fixed. (URL: ' + location.href + ')</div>'
+          document.body.appendChild(box)
+        }
+        window.addEventListener('error', function (e) {
+          if (e && e.target && e.target.tagName) {
+            // A <script>/<link> failed to load (usually a wrong asset path / 404).
+            show('Failed to load a file', 'Could not load: ' + (e.target.src || e.target.href))
+          } else {
+            show('Startup error', (e && e.message) || 'Unknown error')
+          }
+        }, true)
+        window.addEventListener('unhandledrejection', function (e) {
+          show('Startup error (promise)', (e && e.reason && (e.reason.stack || e.reason.message)) || String(e && e.reason))
+        })
+        // Safety net: if nothing rendered after 8s, say so.
+        window.setTimeout(function () {
+          var root = document.getElementById('root')
+          if (root && root.childElementCount === 0) {
+            show('App did not render', 'The page loaded but the app produced no output within 8 seconds.')
+          }
+        }, 8000)
+      })()
+    </script>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

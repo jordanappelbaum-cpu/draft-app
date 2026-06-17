@@ -1,8 +1,9 @@
 # 🏆 Draft
 
-Draft **anything** with your friends — restaurants, NFL teams, ice cream flavors,
-travel spots, video games, dog breeds. Pick a category, add your crew, and
-snake-draft your way to the perfect roster.
+Draft **anything** with your friends — 20 built-in categories including animals,
+football players, mascots, NBA & soccer stars, rappers, restaurants, movies,
+cocktails, cars, candy and more. Pick a category, add your crew, and snake-draft
+your way to the perfect roster.
 
 This is a standalone app — it has nothing to do with AfterCall. It lives in a
 self-contained `draft-app/` folder so it can be lifted into its own repo any time.
@@ -34,6 +35,21 @@ Open the printed `localhost` URL. With no Supabase keys set, the app runs fully
 
 The app auto-detects the keys: present → Supabase, absent → offline. All the
 swappable persistence logic lives in [`src/lib/storage.ts`](./src/lib/storage.ts).
+
+### Accounts (so your drafts follow you across devices)
+
+When Supabase is connected, a **Sign in** button appears in the top bar.
+Accounts use Supabase Auth (email + password):
+
+- Signed-in drafts are tagged with your account, so you'll see **Your drafts**
+  on any device you sign into.
+- Friends still join any draft by **code/link** and make live picks — accounts
+  don't lock anyone out of shared play.
+- Playing without signing in still works; those drafts just live on the one device.
+
+**One setting for instant signups:** in Supabase → **Authentication → Sign In /
+Providers → Email**, turn **off "Confirm email"** so people can sign up and play
+immediately (no inbox round-trip). Leave it on if you'd rather verify emails.
 
 ## Deploy free on GitHub Pages (recommended)
 

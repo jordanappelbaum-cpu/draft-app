@@ -1,4 +1,4 @@
-# 🏆 Draft App
+# 🏆 Draft
 
 Draft **anything** with your friends — restaurants, NFL teams, ice cream flavors,
 travel spots, video games, dog breeds. Pick a category, add your crew, and

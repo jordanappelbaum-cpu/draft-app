@@ -1,0 +1,56 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-ink-900 text-slate-100 font-sans antialiased;
+  background-image:
+    radial-gradient(60rem 60rem at 80% -10%, rgba(139, 92, 246, 0.12), transparent 60%),
+    radial-gradient(50rem 50rem at -10% 10%, rgba(236, 72, 153, 0.1), transparent 55%);
+  background-attachment: fixed;
+}
+
+/* thin custom scrollbars */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  @apply bg-ink-500 rounded-full;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl bg-ink-800/80 ring-1 ring-white/5 backdrop-blur;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none;
+  }
+  .btn-primary {
+    @apply btn text-white bg-gradient-to-r from-violet-600 to-fuchsia-600 shadow-lg shadow-violet-900/40 hover:brightness-110;
+  }
+  .btn-ghost {
+    @apply btn text-slate-300 bg-white/5 ring-1 ring-white/10 hover:bg-white/10;
+  }
+  .input {
+    @apply w-full rounded-xl bg-ink-900/70 ring-1 ring-white/10 px-3.5 py-2.5 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/60;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium;
+  }
+}

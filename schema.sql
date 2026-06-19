@@ -14,6 +14,7 @@ create table if not exists public.drafts (
   rounds      int         not null default 3,
   teams       jsonb       not null default '[]'::jsonb,
   picks       jsonb       not null default '[]'::jsonb,
+  votes       jsonb       not null default '[]'::jsonb,
   status      text        not null default 'active',
   created_at  timestamptz not null default now()
 );
@@ -21,12 +22,21 @@ create table if not exists public.drafts (
 -- Short join code (e.g. "K7QX") so friends can hop into the same draft.
 create index if not exists drafts_code_idx on public.drafts (code);
 
+-- Owner of the draft (the signed-in creator). Lets "Your drafts" follow your
+-- account across devices. Null for guest-created drafts. Safe to re-run.
+alter table public.drafts add column if not exists owner_id uuid default auth.uid();
+create index if not exists drafts_owner_idx on public.drafts (owner_id);
+
+-- "Best team" votes gathered after a draft completes. Safe to re-run.
+alter table public.drafts add column if not exists votes jsonb not null default '[]'::jsonb;
+
 -- Enable Row Level Security.
 alter table public.drafts enable row level security;
 
--- v1 is a friends-with-the-link app: allow anonymous read/write so anyone with
--- the app can play. Tighten this (e.g. require auth.uid() ownership) once you
--- add Supabase Auth.
+-- This is a friends-with-the-link party app: anyone with a draft's code needs to
+-- read AND write it (to make live picks), so read/write stay open. Accounts add
+-- ownership (owner_id) so each person sees *their* drafts — they don't lock the
+-- table down. Tighten later if you ever want private drafts.
 drop policy if exists "public read"   on public.drafts;
 drop policy if exists "public insert" on public.drafts;
 drop policy if exists "public update" on public.drafts;

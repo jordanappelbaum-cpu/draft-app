@@ -26,21 +26,21 @@ export default function HomeView({
   return (
     <div className="space-y-10">
       {/* Hero */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600/20 via-fuchsia-600/10 to-transparent p-6 ring-1 ring-white/10 sm:p-10">
-        <div className="absolute -right-10 -top-10 text-[10rem] opacity-10 sm:text-[14rem]">🏆</div>
-        <p className="font-display text-sm font-semibold uppercase tracking-widest text-violet-300">
-          The draft is on the clock
+      <section className="relative overflow-hidden rounded-3xl border border-white/5 bg-ink-800/60 p-6 ring-1 ring-white/5 sm:p-10">
+        <div className="absolute inset-x-0 -top-24 h-40 bg-violet-600/10 blur-3xl" />
+        <p className="relative font-display text-xs font-semibold uppercase tracking-widest text-violet-300/90">
+          Pick · draft · crown a winner
         </p>
-        <h1 className="mt-2 max-w-xl font-display text-3xl font-bold leading-tight sm:text-5xl">
+        <h1 className="relative mt-2 max-w-xl font-display text-3xl font-bold leading-tight sm:text-5xl">
           Draft <span className="text-violet-400">anything</span> with your friends.
         </h1>
-        <p className="mt-3 max-w-lg text-slate-300">
-          Restaurants, NFL teams, ice cream flavors — pick a category, add your crew, and snake-draft
-          your way to the perfect roster.
+        <p className="relative mt-3 max-w-lg text-slate-400">
+          Pick a category, add your crew, and snake-draft your way to the perfect roster — then vote
+          on who picked best.
         </p>
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
           <button onClick={onNew} className="btn-primary text-base">
-            ⚡ Start a draft
+            Start a draft
           </button>
           <form
             onSubmit={(e) => {
@@ -72,16 +72,18 @@ export default function HomeView({
             <button
               key={c.id}
               onClick={() => onStartCategory(c.id)}
-              className="group card relative overflow-hidden p-4 text-left transition hover:-translate-y-0.5 hover:ring-white/20"
+              className="group card relative overflow-hidden p-4 text-left transition hover:-translate-y-0.5 hover:ring-white/15"
             >
               <div
-                className={`absolute inset-x-0 -top-16 h-24 bg-gradient-to-br ${c.gradient} opacity-20 blur-2xl transition group-hover:opacity-40`}
+                className={`absolute inset-x-0 -top-16 h-24 bg-gradient-to-br ${c.gradient} opacity-0 blur-2xl transition group-hover:opacity-20`}
               />
               <div className="relative">
-                <div className="text-3xl">{c.emoji}</div>
+                <div className="text-2xl">{c.emoji}</div>
                 <div className="mt-3 font-display font-semibold">{c.name}</div>
                 <div className="text-xs text-slate-400">{c.tagline}</div>
-                <div className="mt-3 text-[11px] text-slate-500">{c.items.length} options</div>
+                <div className="mt-3 text-[11px] text-slate-500">
+                  {c.items.length} options{c.groups?.length ? ` · ${c.groups.length} filters` : ''}
+                </div>
               </div>
             </button>
           ))}

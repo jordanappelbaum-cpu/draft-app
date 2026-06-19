@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import confetti from 'canvas-confetti'
 import type { Draft, Pick } from '../lib/types'
-import { getCategory } from '../data/categories'
+import { getCategory, getItem } from '../data/categories'
 import {
   teamOnClock,
   currentRound,
@@ -11,6 +11,7 @@ import {
 } from '../lib/draftLogic'
 import { colorOf } from '../lib/util'
 import { supabaseEnabled } from '../lib/supabase'
+import { deviceId } from '../lib/storage'
 import RosterPanel from '../components/RosterPanel'
 
 interface Props {
@@ -19,12 +20,13 @@ interface Props {
   onExit: () => void
 }
 
-type Tab = 'board' | 'rosters'
+type Tab = 'board' | 'rosters' | 'results'
 
 export default function DraftBoardView({ draft, onChange, onExit }: Props) {
   const category = getCategory(draft.categoryId)!
   const [tab, setTab] = useState<Tab>('board')
   const [query, setQuery] = useState('')
+  const [group, setGroup] = useState<string | null>(null)
 
   const onClock = teamOnClock(draft)
   const round = currentRound(draft)
@@ -32,18 +34,21 @@ export default function DraftBoardView({ draft, onChange, onExit }: Props) {
   const complete = draft.picks.length >= total
   const taken = useMemo(() => takenItemIds(draft), [draft])
 
+  const groups = category.groups ?? []
+  const q = query.trim().toLowerCase()
   const available = category.items.filter(
     (it) =>
       !taken.has(it.id) &&
-      (query.trim() === '' || it.name.toLowerCase().includes(query.trim().toLowerCase())),
+      (group === null || it.group === group) &&
+      (q === '' || it.name.toLowerCase().includes(q) || (it.subtitle ?? '').toLowerCase().includes(q)),
   )
 
-  // Fire confetti + flip to rosters the moment the draft fills up.
+  // Fire confetti + jump to results the moment the draft fills up.
   useEffect(() => {
     if (complete && draft.status !== 'complete') {
       onChange({ ...draft, status: 'complete' })
       celebrate()
-      setTab('rosters')
+      setTab('results')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [complete])
@@ -72,8 +77,8 @@ export default function DraftBoardView({ draft, onChange, onExit }: Props) {
   }
 
   function reset() {
-    if (!confirm('Clear all picks and restart this draft?')) return
-    onChange({ ...draft, status: 'active', picks: [] })
+    if (!confirm('Clear all picks and votes, and restart this draft?')) return
+    onChange({ ...draft, status: 'active', picks: [], votes: [] })
     setTab('board')
   }
 
@@ -109,15 +114,9 @@ export default function DraftBoardView({ draft, onChange, onExit }: Props) {
 
       <InviteBar code={draft.code} />
 
-      {/* On the clock */}
+      {/* On the clock / completion banner */}
       {complete ? (
-        <div className="card animate-pop-in flex items-center gap-3 bg-gradient-to-r from-emerald-600/20 to-teal-600/10 p-4 ring-emerald-500/30">
-          <span className="text-3xl">🎉</span>
-          <div>
-            <div className="font-display text-lg font-bold">Draft complete!</div>
-            <div className="text-sm text-slate-300">Every team filled their roster. Check it out below.</div>
-          </div>
-        </div>
+        <CompleteBanner draft={draft} />
       ) : (
         onClock && (
           <div className={`card flex items-center gap-3 p-4 ring-1 ${clockColor.ring} ${clockColor.bg}`}>
@@ -139,7 +138,7 @@ export default function DraftBoardView({ draft, onChange, onExit }: Props) {
       {/* Progress bar */}
       <div className="h-1.5 overflow-hidden rounded-full bg-white/5">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 transition-all"
+          className="h-full rounded-full bg-violet-500 transition-all"
           style={{ width: `${(draft.picks.length / total) * 100}%` }}
         />
       </div>
@@ -152,10 +151,13 @@ export default function DraftBoardView({ draft, onChange, onExit }: Props) {
         <TabButton active={tab === 'rosters'} onClick={() => setTab('rosters')}>
           Rosters
         </TabButton>
+        <TabButton active={tab === 'results'} onClick={() => setTab('results')}>
+          Results
+        </TabButton>
       </div>
 
       {tab === 'board' ? (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {!complete && (
             <input
               className="input"
@@ -165,9 +167,28 @@ export default function DraftBoardView({ draft, onChange, onExit }: Props) {
             />
           )}
 
+          {/* Sub-type filter chips */}
+          {groups.length > 0 && (
+            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+              <FilterChip active={group === null} onClick={() => setGroup(null)}>
+                All
+              </FilterChip>
+              {groups.map((g) => (
+                <FilterChip key={g.id} active={group === g.id} onClick={() => setGroup(g.id)}>
+                  {g.emoji ? `${g.emoji} ` : ''}
+                  {g.name}
+                </FilterChip>
+              ))}
+            </div>
+          )}
+
           {available.length === 0 ? (
-            <div className="card grid place-items-center p-10 text-slate-400">
-              {complete ? 'All picks are in. 🏁' : 'No matches — try another search.'}
+            <div className="card grid place-items-center p-10 text-center text-slate-400">
+              {complete
+                ? 'All picks are in. 🏁'
+                : taken.size > 0 && group !== null
+                  ? 'Nothing left in this filter — try “All”.'
+                  : 'No matches — try another search.'}
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
@@ -193,7 +214,7 @@ export default function DraftBoardView({ draft, onChange, onExit }: Props) {
             </div>
           )}
         </div>
-      ) : (
+      ) : tab === 'rosters' ? (
         <div className="grid gap-3 sm:grid-cols-2">
           {draft.teams.map((team) => (
             <RosterPanel
@@ -205,8 +226,179 @@ export default function DraftBoardView({ draft, onChange, onExit }: Props) {
             />
           ))}
         </div>
+      ) : (
+        <ResultsTab draft={draft} complete={complete} onChange={onChange} />
       )}
     </div>
+  )
+}
+
+// ---- Results / "best team" voting ----
+
+/** Count votes per team and figure out who's leading. */
+function tallyVotes(draft: Draft) {
+  const counts: Record<string, number> = {}
+  for (const t of draft.teams) counts[t.id] = 0
+  for (const v of draft.votes ?? []) if (counts[v.teamId] !== undefined) counts[v.teamId]++
+  const max = Math.max(0, ...draft.teams.map((t) => counts[t.id]))
+  const leaders = max > 0 ? draft.teams.filter((t) => counts[t.id] === max).map((t) => t.id) : []
+  return { counts, max, leaders, total: (draft.votes ?? []).length }
+}
+
+function CompleteBanner({ draft }: { draft: Draft }) {
+  const { leaders, max } = tallyVotes(draft)
+  const winner = leaders.length === 1 ? draft.teams.find((t) => t.id === leaders[0]) : null
+
+  if (winner) {
+    const c = colorOf(winner.color)
+    return (
+      <div className={`card animate-pop-in flex items-center gap-3 p-4 ring-1 ${c.ring} ${c.bg}`}>
+        <span className="text-3xl">👑</span>
+        <div>
+          <div className="font-display text-lg font-bold">
+            {winner.emoji} {winner.name} {max === 1 ? 'leads' : 'wins'}
+          </div>
+          <div className="text-sm text-slate-300">
+            {max} vote{max === 1 ? '' : 's'} for best roster · vote or change yours in Results.
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="card animate-pop-in flex items-center gap-3 bg-emerald-600/15 p-4 ring-1 ring-emerald-500/30">
+      <span className="text-3xl">🏁</span>
+      <div>
+        <div className="font-display text-lg font-bold">Draft complete!</div>
+        <div className="text-sm text-slate-300">
+          {leaders.length > 1 ? "It's a tie — " : ''}Head to Results to vote on the best team.
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ResultsTab({
+  draft,
+  complete,
+  onChange,
+}: {
+  draft: Draft
+  complete: boolean
+  onChange: (draft: Draft) => void
+}) {
+  const me = deviceId()
+  const votes = draft.votes ?? []
+  const myVote = votes.find((v) => v.voterId === me)?.teamId ?? null
+  const { counts, leaders, total } = tallyVotes(draft)
+
+  function vote(teamId: string) {
+    const others = votes.filter((v) => v.voterId !== me)
+    const next = myVote === teamId ? others : [...others, { voterId: me, teamId }]
+    onChange({ ...draft, votes: next })
+  }
+
+  // Show teams ranked by votes (then by original order).
+  const ranked = [...draft.teams].sort((a, b) => counts[b.id] - counts[a.id])
+
+  return (
+    <div className="space-y-4">
+      <div className="card p-4">
+        <div className="font-display text-lg font-bold">Who drafted the best team?</div>
+        <p className="text-sm text-slate-400">
+          {complete
+            ? 'Everyone taps the roster they think is best — one vote per phone. Tap again to undo.'
+            : 'Voting opens once the draft is complete, but you can preview the rosters below.'}
+        </p>
+        <div className="mt-1 text-xs text-slate-500">
+          {total} vote{total === 1 ? '' : 's'} so far
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        {ranked.map((team) => {
+          const c = colorOf(team.color)
+          const picks = rosterFor(draft, team.id)
+          const n = counts[team.id]
+          const isLeader = leaders.includes(team.id) && total > 0
+          const mine = myVote === team.id
+          return (
+            <div
+              key={team.id}
+              className={`card overflow-hidden p-0 ring-1 ${isLeader ? c.ring : 'ring-white/5'}`}
+            >
+              <div className={`flex items-center gap-2.5 px-4 py-3 ${c.bg}`}>
+                <span className="grid h-9 w-9 place-items-center rounded-lg bg-ink-900/40 text-lg">
+                  {team.emoji}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className={`flex items-center gap-1.5 truncate font-display font-bold ${c.text}`}>
+                    {isLeader && <span>👑</span>}
+                    {team.name}
+                  </div>
+                  <div className="text-[11px] text-slate-400">
+                    {n} vote{n === 1 ? '' : 's'}
+                  </div>
+                </div>
+                <button
+                  onClick={() => vote(team.id)}
+                  disabled={!complete}
+                  className={`btn px-3 py-1.5 text-xs ${
+                    mine
+                      ? 'bg-white text-ink-900'
+                      : 'bg-white/10 text-slate-200 ring-1 ring-white/10 hover:bg-white/15'
+                  }`}
+                >
+                  {mine ? '✓ Your pick' : 'Vote'}
+                </button>
+              </div>
+
+              <div className="flex flex-wrap gap-1.5 px-4 py-3">
+                {picks.length === 0 ? (
+                  <span className="text-sm text-slate-500">No picks</span>
+                ) : (
+                  picks.map((p) => {
+                    const item = getItem(draft.categoryId, p.itemId)
+                    return (
+                      <span
+                        key={p.itemId}
+                        className="chip bg-white/5 text-[12px] text-slate-300 ring-1 ring-white/5"
+                      >
+                        {item?.emoji ?? '⭐'} {item?.name ?? 'Unknown'}
+                      </span>
+                    )
+                  })
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function FilterChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+        active
+          ? 'bg-violet-500/20 text-violet-200 ring-1 ring-violet-500/40'
+          : 'bg-white/5 text-slate-400 ring-1 ring-white/10 hover:text-slate-200'
+      }`}
+    >
+      {children}
+    </button>
   )
 }
 
